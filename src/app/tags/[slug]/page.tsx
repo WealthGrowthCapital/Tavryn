@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { QuestionCard } from '@/components/question-card';
+import { TagTools } from '@/components/tag-tools';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.forum';
 
@@ -38,5 +39,5 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
   const { data: categories } = categoryIds.length ? await supabase.from('categories').select('id,name').in('id', categoryIds) : { data: [] as { id: string; name: string }[] };
   const categoryById = new Map((categories ?? []).map(c => [c.id, c.name]));
 
-  return <main className="container py-12"><div className="mx-auto max-w-4xl"><Link href="/tags" className="text-sm text-slate-500 hover:text-slate-950">← Tags</Link><div className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Tag</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">{tag.name}</h1>{tag.description && <p className="mt-2 max-w-2xl text-slate-600">{tag.description}</p>}<div className="mt-8 grid gap-4">{(questions ?? []).map(question => <QuestionCard key={question.id} href={`/questions/${question.slug}`} title={question.title} excerpt={question.body_markdown} category={categoryById.get(question.category_id ?? '') ?? 'Community'} answers={counts.get(question.id) ?? 0} views={Number(question.view_count ?? 0)} />)}</div>{!questions?.length && <div className="card mt-8 p-8 text-center text-sm text-slate-600">No questions use this tag yet.</div>}</div></main>;
+  return <main className="container py-12"><div className="mx-auto max-w-4xl"><Link href="/tags" className="text-sm text-slate-500 hover:text-slate-950">← Tags</Link><div className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Tag</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">{tag.name}</h1>{tag.description && <p className="mt-2 max-w-2xl text-slate-600">{tag.description}</p>}<TagTools tagId={tag.id} /><section className="mt-10" aria-labelledby="tag-questions-heading"><h2 id="tag-questions-heading" className="text-xl font-semibold text-slate-950">Questions</h2><div className="mt-4 grid gap-4">{(questions ?? []).map(question => <QuestionCard key={question.id} href={`/questions/${question.slug}`} title={question.title} excerpt={question.body_markdown} category={categoryById.get(question.category_id ?? '') ?? 'Community'} answers={counts.get(question.id) ?? 0} views={Number(question.view_count ?? 0)} />)}</div>{!questions?.length && <div className="card mt-4 p-8 text-center text-sm text-slate-600">No questions use this tag yet.</div>}</section></div></main>;
 }
