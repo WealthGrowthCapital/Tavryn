@@ -42,11 +42,18 @@ type Report = {
   created_at: string;
 };
 
-type Target = {
+type QuestionTarget = {
   id: string;
-  title?: string;
-  body_markdown?: string;
-  question_id?: string;
+  slug: string;
+  title: string;
+  status: string;
+};
+
+type AnswerTarget = {
+  id: string;
+  body_markdown: string;
+  status: string;
+  question_id: string;
 };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -57,8 +64,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const questionIds = [...new Set((reports ?? []).filter((r) => r.target_type === 'question').map((r) => r.target_id))];
   const answerIds = [...new Set((reports ?? []).filter((r) => r.target_type === 'answer').map((r) => r.target_id))];
   const [{ data: questions }, { data: answers }] = await Promise.all([
-    questionIds.length ? supabase.from('questions').select('id,slug,title,status').in('id', questionIds) : Promise.resolve({ data: [] as Target[] }),
-    answerIds.length ? supabase.from('answers').select('id,body_markdown,status,question_id').in('id', answerIds) : Promise.resolve({ data: [] as Target[] }),
+    questionIds.length ? supabase.from('questions').select('id,slug,title,status').in('id', questionIds) : Promise.resolve({ data: [] as QuestionTarget[] }),
+    answerIds.length ? supabase.from('answers').select('id,body_markdown,status,question_id').in('id', answerIds) : Promise.resolve({ data: [] as AnswerTarget[] }),
   ]);
   const questionsById = new Map((questions ?? []).map((q) => [q.id, q]));
   const answersById = new Map((answers ?? []).map((a) => [a.id, a]));
@@ -81,7 +88,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 </div>
                 <h2 className="mt-3 text-lg font-semibold text-slate-950">{report.target_type === 'question' ? target?.title : target?.body_markdown?.slice(0, 220) ?? 'Reported content'}</h2>
                 {report.target_type === 'answer' && target?.question_id && <p className="mt-2 text-sm text-slate-500">Answer on question {questionsById.get(target.question_id)?.title ?? target.question_id}</p>}
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{report.target_type === 'question' ? `Status: ${target?.status ?? 'unknown'}` : `Status: ${target?.status ?? 'unknown'}`}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">Status: {target?.status ?? 'unknown'}</p>
                 <div className="mt-5 flex flex-wrap gap-2">
                   {report.target_type === 'question' && questionsById.get(report.target_id)?.slug && <a href={`/questions/${questionsById.get(report.target_id)?.slug}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View question</a>}
                   {report.target_type === 'answer' && target?.question_id && <a href={`/questions/${questionsById.get(target.question_id)?.slug ?? ''}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View discussion</a>}
