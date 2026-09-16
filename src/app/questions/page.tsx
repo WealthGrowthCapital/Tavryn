@@ -4,7 +4,7 @@ import { QuestionCard } from '@/components/question-card';
 
 export default async function QuestionsPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: questions } = await supabase?.from('questions').select('id,slug,title,body_markdown,status,view_count,category_id').in('status', ['open', 'closed']).order('last_activity_at', { ascending: false }).limit(50) ?? { data: [] };
+  const { data: questions } = await supabase?.from('questions').select('id,slug,title,body_markdown,status,view_count,category_id').in('status', ['open', 'closed']).order('updated_at', { ascending: false }).limit(50) ?? { data: [] };
 
   return (
     <main className="container py-12">
