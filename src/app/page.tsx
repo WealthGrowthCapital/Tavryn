@@ -5,10 +5,10 @@ import { QuestionCard } from '@/components/question-card';
 import { ToolCard } from '@/components/tool-card';
 
 export default async function HomePage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const [{ data: tools }, { data: questions }] = await Promise.all([
-    supabase?.from('tools').select('slug,name,description,route').eq('is_published', true).order('created_at', { ascending: false }).limit(6) ?? Promise.resolve({ data: [] as never[] }),
-    supabase?.from('questions').select('slug,title,body_markdown,view_count').neq('status', 'hidden').order('created_at', { ascending: false }).limit(6) ?? Promise.resolve({ data: [] as never[] }),
+    supabase?.from('tools').select('slug,name,description,route').eq('is_published', true).order('created_at', { ascending: false }).limit(6) ?? Promise.resolve({ data: [] as { slug: string; name: string; description: string; route: string }[] }),
+    supabase?.from('questions').select('slug,title,body_markdown,view_count').neq('status', 'hidden').order('created_at', { ascending: false }).limit(6) ?? Promise.resolve({ data: [] as { slug: string; title: string; body_markdown: string; view_count: number }[] }),
   ]);
 
   return (
