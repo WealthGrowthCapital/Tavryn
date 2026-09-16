@@ -13,14 +13,14 @@ export async function createSupabaseServerClient() {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, _headers) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
           });
         } catch {
           // Server Components may not be allowed to mutate cookies.
-          // Route handlers/actions can still refresh auth state.
+          // Proxy handles session refresh and response cookies.
         }
       },
     },
