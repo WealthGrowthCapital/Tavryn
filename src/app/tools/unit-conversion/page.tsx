@@ -1,0 +1,1 @@
+export default function UnitConversion(){return <main className="container py-12"><h1 className="text-3xl font-semibold">Unit Conversion</h1><div className="card mt-8 p-6"><p className="text-sm text-slate-600">Tool workspace ready for the first license-cleared open-source utility.</p></div></main>}
