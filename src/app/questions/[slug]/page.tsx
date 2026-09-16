@@ -2,171 +2,46 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
-function errorRedirect(slug: string, message: string): never {
-  redirect(`/questions/${encodeURIComponent(slug)}?error=${encodeURIComponent(message)}`);
-}
-
-async function requireUser() {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return { supabase: null, userId: null };
-  const { data, error } = await supabase.auth.getClaims();
-  return { supabase, userId: error ? null : (data?.claims?.sub as string | undefined) ?? null };
-}
-
-async function ensureProfile(supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>, userId: string) {
-  return supabase.from('profiles').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true });
-}
+function errorRedirect(slug: string, message: string): never { redirect(`/questions/${encodeURIComponent(slug)}?error=${encodeURIComponent(message)}`); }
+async function requireUser() { const supabase = await createSupabaseServerClient(); if (!supabase) return { supabase: null, userId: null }; const { data, error } = await supabase.auth.getClaims(); return { supabase, userId: error ? null : (data?.claims?.sub as string | undefined) ?? null }; }
+async function ensureProfile(supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>, userId: string) { return supabase.from('profiles').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true }); }
 
 async function createAnswer(formData: FormData) {
-  'use server';
-  const questionId = String(formData.get('questionId') ?? '').trim();
-  const body = String(formData.get('body') ?? '').trim();
-  const slug = String(formData.get('slug') ?? '').trim();
-  if (!questionId || !slug || body.length < 20 || body.length > 20000) errorRedirect(slug, 'Please write an answer between 20 and 20,000 characters.');
-  const { supabase, userId } = await requireUser();
-  if (!supabase) errorRedirect(slug, 'Supabase is not configured.');
-  if (!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
-  const { error: profileError } = await ensureProfile(supabase, userId);
-  if (profileError) errorRedirect(slug, 'We couldn’t prepare your profile.');
-  const { error } = await supabase.from('answers').insert({ question_id: questionId, author_id: userId, body_markdown: body, status: 'published' });
-  if (error) errorRedirect(slug, 'We couldn’t publish that answer.');
-  redirect(`/questions/${encodeURIComponent(slug)}`);
+  'use server'; const questionId=String(formData.get('questionId')??'').trim(); const body=String(formData.get('body')??'').trim(); const slug=String(formData.get('slug')??'').trim();
+  if(!questionId||!slug||body.length<20||body.length>20000) errorRedirect(slug,'Please write an answer between 20 and 20,000 characters.');
+  const {supabase,userId}=await requireUser(); if(!supabase) errorRedirect(slug,'Supabase is not configured.'); if(!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
+  const {error:profileError}=await ensureProfile(supabase,userId); if(profileError) errorRedirect(slug,'We couldn’t prepare your profile.');
+  const {error}=await supabase.from('answers').insert({question_id:questionId,author_id:userId,body_markdown:body,status:'published'}); if(error) errorRedirect(slug,'We couldn’t publish that answer.'); redirect(`/questions/${encodeURIComponent(slug)}`);
 }
-
 async function setVote(formData: FormData) {
-  'use server';
-  const slug = String(formData.get('slug') ?? '').trim();
-  const targetType = String(formData.get('targetType') ?? '').trim();
-  const targetId = String(formData.get('targetId') ?? '').trim();
-  const rawValue = Number(formData.get('value'));
-  const value = rawValue === -1 ? -1 : rawValue === 1 ? 1 : 0;
-  if (!slug || !targetId || targetType !== 'answer' || value === 0) errorRedirect(slug, 'That vote could not be processed.');
-  const { supabase, userId } = await requireUser();
-  if (!supabase) errorRedirect(slug, 'Supabase is not configured.');
-  if (!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
-  const { data: existing, error: lookupError } = await supabase.from('votes').select('id,value').eq('user_id', userId).eq('target_type', 'answer').eq('target_id', targetId).maybeSingle();
-  if (lookupError) errorRedirect(slug, 'We couldn’t load your existing vote.');
-  let error = null;
-  if (existing?.id && existing.value === value) ({ error } = await supabase.from('votes').delete().eq('id', existing.id));
-  else if (existing?.id) ({ error } = await supabase.from('votes').update({ value }).eq('id', existing.id));
-  else ({ error } = await supabase.from('votes').insert({ user_id: userId, target_type: 'answer', target_id: targetId, value }));
-  if (error) errorRedirect(slug, 'We couldn’t save that vote.');
-  redirect(`/questions/${encodeURIComponent(slug)}`);
+  'use server'; const slug=String(formData.get('slug')??'').trim(); const targetId=String(formData.get('targetId')??'').trim(); const rawValue=Number(formData.get('value')); const value=rawValue===-1?-1:rawValue===1?1:0;
+  if(!slug||!targetId||value===0) errorRedirect(slug,'That vote could not be processed.'); const {supabase,userId}=await requireUser(); if(!supabase) errorRedirect(slug,'Supabase is not configured.'); if(!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
+  const {data:existing,error:lookupError}=await supabase.from('votes').select('id,value').eq('user_id',userId).eq('target_type','answer').eq('target_id',targetId).maybeSingle(); if(lookupError) errorRedirect(slug,'We couldn’t load your existing vote.');
+  let error=null; if(existing?.id&&existing.value===value) ({error}=await supabase.from('votes').delete().eq('id',existing.id)); else if(existing?.id) ({error}=await supabase.from('votes').update({value}).eq('id',existing.id)); else ({error}=await supabase.from('votes').insert({user_id:userId,target_type:'answer',target_id:targetId,value}));
+  if(error) errorRedirect(slug,'We couldn’t save that vote.'); redirect(`/questions/${encodeURIComponent(slug)}`);
 }
-
 async function toggleBookmark(formData: FormData) {
-  'use server';
-  const slug = String(formData.get('slug') ?? '').trim();
-  const targetType = String(formData.get('targetType') ?? '').trim();
-  const targetId = String(formData.get('targetId') ?? '').trim();
-  if (!slug || !targetId || !['question', 'answer'].includes(targetType)) errorRedirect(slug, 'That bookmark could not be processed.');
-  const { supabase, userId } = await requireUser();
-  if (!supabase) errorRedirect(slug, 'Supabase is not configured.');
-  if (!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
-  const { data: existing, error: lookupError } = await supabase.from('bookmarks').select('id').eq('user_id', userId).eq('target_type', targetType).eq('target_id', targetId).maybeSingle();
-  if (lookupError) errorRedirect(slug, 'We couldn’t load that bookmark.');
-  const result = existing?.id ? await supabase.from('bookmarks').delete().eq('id', existing.id) : await supabase.from('bookmarks').insert({ user_id: userId, target_type: targetType, target_id: targetId });
-  if (result.error) errorRedirect(slug, 'We couldn’t save that bookmark.');
-  redirect(`/questions/${encodeURIComponent(slug)}`);
+  'use server'; const slug=String(formData.get('slug')??'').trim(); const targetType=String(formData.get('targetType')??'').trim(); const targetId=String(formData.get('targetId')??'').trim(); if(!slug||!targetId||!['question','answer'].includes(targetType)) errorRedirect(slug,'That bookmark could not be processed.');
+  const {supabase,userId}=await requireUser(); if(!supabase) errorRedirect(slug,'Supabase is not configured.'); if(!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
+  const {data:existing,error:lookupError}=await supabase.from('bookmarks').select('id').eq('user_id',userId).eq('target_type',targetType).eq('target_id',targetId).maybeSingle(); if(lookupError) errorRedirect(slug,'We couldn’t load that bookmark.');
+  const result=existing?.id?await supabase.from('bookmarks').delete().eq('id',existing.id):await supabase.from('bookmarks').insert({user_id:userId,target_type:targetType,target_id:targetId}); if(result.error) errorRedirect(slug,'We couldn’t save that bookmark.'); redirect(`/questions/${encodeURIComponent(slug)}`);
 }
-
 async function createComment(formData: FormData) {
-  'use server';
-  const slug = String(formData.get('slug') ?? '').trim();
-  const targetType = String(formData.get('targetType') ?? '').trim();
-  const targetId = String(formData.get('targetId') ?? '').trim();
-  const body = String(formData.get('body') ?? '').trim();
-  if (!slug || !targetId || !['question', 'answer'].includes(targetType) || body.length < 2 || body.length > 2000) errorRedirect(slug, 'Comments must be between 2 and 2,000 characters.');
-  const { supabase, userId } = await requireUser();
-  if (!supabase) errorRedirect(slug, 'Supabase is not configured.');
-  if (!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
-  const { error: profileError } = await ensureProfile(supabase, userId);
-  if (profileError) errorRedirect(slug, 'We couldn’t prepare your profile.');
-  const { error } = await supabase.from('comments').insert({ target_type: targetType, target_id: targetId, author_id: userId, body_markdown: body, status: 'published' });
-  if (error) errorRedirect(slug, 'We couldn’t publish that comment.');
-  redirect(`/questions/${encodeURIComponent(slug)}`);
+  'use server'; const slug=String(formData.get('slug')??'').trim(); const targetType=String(formData.get('targetType')??'').trim(); const targetId=String(formData.get('targetId')??'').trim(); const body=String(formData.get('body')??'').trim();
+  if(!slug||!targetId||!['question','answer'].includes(targetType)||body.length<2||body.length>2000) errorRedirect(slug,'Comments must be between 2 and 2,000 characters.'); const {supabase,userId}=await requireUser(); if(!supabase) errorRedirect(slug,'Supabase is not configured.'); if(!userId) redirect(`/auth/sign-in?next=/questions/${encodeURIComponent(slug)}`);
+  const {error:profileError}=await ensureProfile(supabase,userId); if(profileError) errorRedirect(slug,'We couldn’t prepare your profile.'); const {error}=await supabase.from('comments').insert({target_type:targetType,target_id:targetId,author_id:userId,body_markdown:body,status:'published'}); if(error) errorRedirect(slug,'We couldn’t publish that comment.'); redirect(`/questions/${encodeURIComponent(slug)}`);
 }
 
-export default async function QuestionDetailPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ error?: string }> }) {
-  const { slug } = await params;
-  const { error: formError } = await searchParams;
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) notFound();
-
-  const { data: question } = await supabase.from('questions').select('id,slug,title,body_markdown,view_count,created_at,category_id,status').eq('slug', slug).in('status', ['open', 'closed']).maybeSingle();
-  if (!question) notFound();
-
-  const { data: answers } = await supabase.from('answers').select('id,body_markdown,score,is_accepted,created_at').eq('question_id', question.id).eq('status', 'published').order('is_accepted', { ascending: false }).order('score', { ascending: false }).order('created_at', { ascending: true });
-  const answerIds = (answers ?? []).map((answer) => answer.id);
-  const targetIds = [question.id, ...answerIds];
-
-  const { data: comments } = targetIds.length
-    ? await supabase.from('comments').select('id,target_type,target_id,body_markdown,created_at').eq('status', 'published').in('target_id', targetIds).order('created_at', { ascending: true })
-    : { data: [] as { id: string; target_type: string; target_id: string; body_markdown: string; created_at: string }[] };
-
-  const { userId } = await requireUser();
-  const userBookmarks = userId && targetIds.length
-    ? (await supabase.from('bookmarks').select('id,target_type,target_id').eq('user_id', userId).in('target_id', targetIds)).data ?? []
-    : [];
-
-  const commentsByTarget = new Map<string, NonNullable<typeof comments>>();
-  for (const comment of comments ?? []) {
-    const key = `${comment.target_type}:${comment.target_id}`;
-    commentsByTarget.set(key, [...(commentsByTarget.get(key) ?? []), comment]);
-  }
-  const bookmarked = new Set(userBookmarks.map((item) => `${item.target_type}:${item.target_id}`));
-
-  return (
-    <main className="container py-12">
-      <article className="mx-auto max-w-3xl">
-        <div className="text-sm text-slate-500">Community question · {Number(question.view_count ?? 0).toLocaleString()} views</div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{question.title}</h1>
-        <div className="card mt-8 p-6"><div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{question.body_markdown}</div></div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-          <form action={toggleBookmark}><input type="hidden" name="slug" value={question.slug} /><input type="hidden" name="targetType" value="question" /><input type="hidden" name="targetId" value={question.id} /><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">{bookmarked.has(`question:${question.id}`) ? 'Saved' : 'Save'}</button></form>
-          <span className="text-slate-400">{commentsByTarget.get(`question:${question.id}`)?.length ?? 0} comments</span>
-        </div>
-        {formError && <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{formError}</div>}
-
-        <section className="mt-12" aria-labelledby="answers-heading">
-          <h2 id="answers-heading" className="text-xl font-semibold">{answers?.length ?? 0} answers</h2>
-          <div className="mt-5 space-y-4">
-            {(answers ?? []).map((answer) => {
-              const key = `answer:${answer.id}`;
-              const answerComments = commentsByTarget.get(key) ?? [];
-              return (
-                <article key={answer.id} className={`card p-6 ${answer.is_accepted ? 'ring-2 ring-slate-900/10' : ''}`}>
-                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{answer.is_accepted ? 'Accepted answer' : `Score ${Number(answer.score ?? 0)}`}</div>
-                  <div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{answer.body_markdown}</div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                    <form action={setVote}><input type="hidden" name="slug" value={question.slug} /><input type="hidden" name="targetType" value="answer" /><input type="hidden" name="targetId" value={answer.id} /><input type="hidden" name="value" value="1" /><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">↑</button></form>
-                    <form action={setVote}><input type="hidden" name="slug" value={question.slug} /><input type="hidden" name="targetType" value="answer" /><input type="hidden" name="targetId" value={answer.id} /><input type="hidden" name="value" value="-1" /><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">↓</button></form>
-                    <form action={toggleBookmark}><input type="hidden" name="slug" value={question.slug} /><input type="hidden" name="targetType" value="answer" /><input type="hidden" name="targetId" value={answer.id} /><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">{bookmarked.has(key) ? 'Saved' : 'Save'}</button></form>
-                    <span className="text-slate-400">{answerComments.length} comments</span>
-                  </div>
-                  {answerComments.length > 0 && <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">{answerComments.map((comment) => <div key={comment.id} className="text-sm text-slate-600">{comment.body_markdown}</div>)}</div>}
-                  <form action={createComment} className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <input type="hidden" name="slug" value={question.slug} /><input type="hidden" name="targetType" value="answer" /><input type="hidden" name="targetId" value={answer.id} />
-                    <input name="body" required minLength={2} maxLength={2000} placeholder="Add a useful comment…" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
-                    <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Comment</button>
-                  </form>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-
-        {question.status === 'open' && <section className="mt-10" aria-labelledby="answer-form-heading">
-          <h2 id="answer-form-heading" className="text-xl font-semibold">Write an answer</h2>
-          <p className="mt-2 text-sm text-slate-600">Share a concrete solution, explanation, or useful next step.</p>
-          <form action={createAnswer} className="card mt-5 p-6">
-            <input type="hidden" name="questionId" value={question.id} /><input type="hidden" name="slug" value={question.slug} />
-            <label htmlFor="answer-body" className="text-sm font-medium">Answer</label>
-            <textarea id="answer-body" name="body" required minLength={20} maxLength={20000} className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 p-4 outline-none focus:border-slate-500" placeholder="Explain what works and why." />
-            <div className="mt-4 flex items-center justify-between gap-4"><Link href={`/auth/sign-in?next=/questions/${encodeURIComponent(question.slug)}`} className="text-sm text-slate-500 hover:text-slate-950">Sign in to post</Link><button type="submit" className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Post answer</button></div>
-          </form>
-        </section>}
-      </article>
-    </main>
-  );
+export default async function QuestionDetailPage({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<{error?:string}>}) {
+  const {slug}=await params; const {error:formError}=await searchParams; const supabase=await createSupabaseServerClient(); if(!supabase) notFound();
+  const {data:question}=await supabase.from('questions').select('id,slug,title,body_markdown,view_count,created_at,category_id,status').eq('slug',slug).in('status',['open','closed']).maybeSingle(); if(!question) notFound();
+  const {data:category}=question.category_id?await supabase.from('categories').select('slug,name,is_indexable').eq('id',question.category_id).eq('is_public',true).maybeSingle():{data:null};
+  const {data:answers}=await supabase.from('answers').select('id,body_markdown,score,is_accepted,created_at').eq('question_id',question.id).eq('status','published').order('is_accepted',{ascending:false}).order('score',{ascending:false}).order('created_at',{ascending:true});
+  const answerIds=(answers??[]).map(a=>a.id); const targetIds=[question.id,...answerIds];
+  const {data:comments}=targetIds.length?await supabase.from('comments').select('id,target_type,target_id,body_markdown,created_at').eq('status','published').in('target_id',targetIds).order('created_at',{ascending:true}):{data:[] as {id:string;target_type:string;target_id:string;body_markdown:string;created_at:string}[]};
+  const {userId}=await requireUser(); const userBookmarks=userId&&targetIds.length?(await supabase.from('bookmarks').select('id,target_type,target_id').eq('user_id',userId).in('target_id',targetIds)).data??[]:[];
+  const commentsByTarget=new Map<string,NonNullable<typeof comments>>(); for(const comment of comments??[]){const key=`${comment.target_type}:${comment.target_id}`; commentsByTarget.set(key,[...(commentsByTarget.get(key)??[]),comment]);} const bookmarked=new Set(userBookmarks.map(i=>`${i.target_type}:${i.target_id}`));
+  return <main className="container py-12"><article className="mx-auto max-w-3xl"><div className="text-sm text-slate-500">{category?<Link href={`/categories/${category.slug}`} className="hover:text-slate-950">{category.name}</Link>:'Community'} · {Number(question.view_count??0).toLocaleString()} views</div><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{question.title}</h1><div className="card mt-8 p-6"><div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{question.body_markdown}</div></div><div className="mt-4 flex flex-wrap items-center gap-2 text-sm"><form action={toggleBookmark}><input type="hidden" name="slug" value={question.slug}/><input type="hidden" name="targetType" value="question"/><input type="hidden" name="targetId" value={question.id}/><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">{bookmarked.has(`question:${question.id}`)?'Saved':'Save'}</button></form><span className="text-slate-400">{commentsByTarget.get(`question:${question.id}`)?.length??0} comments</span></div>{formError&&<div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{formError}</div>}
+  <section className="mt-12" aria-labelledby="answers-heading"><h2 id="answers-heading" className="text-xl font-semibold">{answers?.length??0} answers</h2><div className="mt-5 space-y-4">{(answers??[]).map(answer=>{const key=`answer:${answer.id}`;const answerComments=commentsByTarget.get(key)??[];return <article key={answer.id} className={`card p-6 ${answer.is_accepted?'ring-2 ring-slate-900/10':''}`}><div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{answer.is_accepted?'Accepted answer':`Score ${Number(answer.score??0)}`}</div><div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{answer.body_markdown}</div><div className="mt-4 flex flex-wrap items-center gap-2 text-sm"><form action={setVote}><input type="hidden" name="slug" value={question.slug}/><input type="hidden" name="targetId" value={answer.id}/><input type="hidden" name="value" value="1"/><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">↑</button></form><form action={setVote}><input type="hidden" name="slug" value={question.slug}/><input type="hidden" name="targetId" value={answer.id}/><input type="hidden" name="value" value="-1"/><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">↓</button></form><form action={toggleBookmark}><input type="hidden" name="slug" value={question.slug}/><input type="hidden" name="targetType" value="answer"/><input type="hidden" name="targetId" value={answer.id}/><button className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-50">{bookmarked.has(key)?'Saved':'Save'}</button></form><span className="text-slate-400">{answerComments.length} comments</span></div>{answerComments.length>0&&<div className="mt-4 space-y-3 border-t border-slate-100 pt-4">{answerComments.map(comment=><div key={comment.id} className="text-sm text-slate-600">{comment.body_markdown}</div>)}</div>}<form action={createComment} className="mt-4 flex flex-col gap-2 sm:flex-row"><input type="hidden" name="slug" value={question.slug}/><input type="hidden" name="targetType" value="answer"/><input type="hidden" name="targetId" value={answer.id}/><input name="body" required minLength={2} maxLength={2000} placeholder="Add a useful comment…" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"/><button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Comment</button></form></article>;})}</div></section>
+  {question.status==='open'&&<section className="mt-10" aria-labelledby="answer-form-heading"><h2 id="answer-form-heading" className="text-xl font-semibold">Write an answer</h2><p className="mt-2 text-sm text-slate-600">Share a concrete solution, explanation, or useful next step.</p><form action={createAnswer} className="card mt-5 p-6"><input type="hidden" name="questionId" value={question.id}/><input type="hidden" name="slug" value={question.slug}/><label htmlFor="answer-body" className="text-sm font-medium">Answer</label><textarea id="answer-body" name="body" required minLength={20} maxLength={20000} className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 p-4 outline-none focus:border-slate-500" placeholder="Explain what works and why."/><div className="mt-4 flex items-center justify-between gap-4"><Link href={`/auth/sign-in?next=/questions/${encodeURIComponent(question.slug)}`} className="text-sm text-slate-500 hover:text-slate-950">Sign in to post</Link><button type="submit" className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Post answer</button></div></form></section>}</article></main>;
 }
