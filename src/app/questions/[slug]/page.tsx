@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export default async function QuestionDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   if (!supabase) notFound();
 
   const { data: question } = await supabase.from('questions').select('id,slug,title,body_markdown,view_count,created_at,category_id').eq('slug', slug).in('status', ['open', 'closed']).maybeSingle();
