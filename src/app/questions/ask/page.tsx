@@ -2,14 +2,7 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 function makeSlug(title: string) {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
+  return title.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 }
 
 async function createQuestion(formData: FormData) {
@@ -17,6 +10,7 @@ async function createQuestion(formData: FormData) {
 
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
+  const categoryId = String(formData.get('categoryId') ?? '').trim();
 
   if (title.length < 8 || title.length > 180 || body.length < 20 || body.length > 20000) {
     redirect('/questions/ask?error=Please%20use%20a%20title%20between%208%E2%80%93180%20characters%20and%20a%20question%20body%20between%2020%E2%80%9320%2C000%20characters.');
@@ -28,41 +22,30 @@ async function createQuestion(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth/sign-in?next=/questions/ask');
 
+  const { data: categories } = await supabase.from('categories').select('id').eq('is_public', true).eq('id', categoryId).limit(1);
+  if (!categoryId || !categories?.length) redirect('/questions/ask?error=Please%20choose%20a%20valid%20category.');
+
   const { error: profileError } = await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
   if (profileError) redirect('/questions/ask?error=We%20couldn%E2%80%99t%20prepare%20your%20profile.');
 
   const baseSlug = makeSlug(title) || 'question';
   let slug = baseSlug;
 
-  let insert = await supabase.from('questions').insert({
-    author_id: user.id,
-    title,
-    slug,
-    body_markdown: body,
-    status: 'open',
-  }).select('slug').single();
+  let insert = await supabase.from('questions').insert({ author_id: user.id, category_id: categoryId, title, slug, body_markdown: body, status: 'open' }).select('slug').single();
 
   if (insert.error?.code === '23505') {
     slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
-    insert = await supabase.from('questions').insert({
-      author_id: user.id,
-      title,
-      slug,
-      body_markdown: body,
-      status: 'open',
-    }).select('slug').single();
+    insert = await supabase.from('questions').insert({ author_id: user.id, category_id: categoryId, title, slug, body_markdown: body, status: 'open' }).select('slug').single();
   }
 
-  if (insert.error || !insert.data) {
-    redirect('/questions/ask?error=We%20couldn%E2%80%99t%20publish%20that%20question.');
-  }
-
+  if (insert.error || !insert.data) redirect('/questions/ask?error=We%20couldn%E2%80%99t%20publish%20that%20question.');
   redirect(`/questions/${insert.data.slug}`);
 }
 
 export default async function AskPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
-  const error = params.error;
+  const supabase = await createSupabaseServerClient();
+  const { data: categories } = await supabase?.from('categories').select('id,name').eq('is_public', true).order('name') ?? { data: [] as { id: string; name: string }[] };
 
   return (
     <main className="container py-12">
@@ -71,10 +54,16 @@ export default async function AskPage({ searchParams }: { searchParams: Promise<
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Ask a question</h1>
         <p className="mt-2 text-slate-600">Describe the problem clearly enough that the answers can become useful long-term knowledge.</p>
 
-        {error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+        {params.error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{params.error}</div>}
 
         <form action={createQuestion} className="card mt-8 p-6">
-          <label htmlFor="title" className="text-sm font-medium">Title</label>
+          <label htmlFor="categoryId" className="text-sm font-medium">Category</label>
+          <select id="categoryId" name="categoryId" required className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-slate-500">
+            <option value="">Choose a category</option>
+            {(categories ?? []).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+
+          <label htmlFor="title" className="mt-6 block text-sm font-medium">Title</label>
           <input id="title" name="title" required minLength={8} maxLength={180} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500" placeholder="What are you trying to solve?" />
 
           <label htmlFor="body" className="mt-6 block text-sm font-medium">Details</label>
