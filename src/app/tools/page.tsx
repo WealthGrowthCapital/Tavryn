@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function Tools(){return <main className="container py-12"><h1 className="text-3xl font-semibold">Tools</h1><p className="mt-2 text-slate-600">Free utilities will live here as first-class searchable pages.</p><div className="mt-8 grid gap-4 md:grid-cols-3"><Link href="/tools/unit-conversion" className="card p-6"><h2 className="font-semibold">Unit Conversion</h2><p className="mt-2 text-sm text-slate-600">Fast everyday conversions.</p></Link></div></main>}
