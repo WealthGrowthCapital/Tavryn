@@ -1,7 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { QuestionCard } from '@/components/question-card';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.forum';
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -19,10 +21,11 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   return <main className="container py-12"><div className="mx-auto max-w-4xl"><Link href="/questions" className="text-sm text-slate-500 hover:text-slate-950">← Questions</Link><div className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Category</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">{category.name}</h1>{category.description && <p className="mt-2 max-w-2xl text-slate-600">{category.description}</p>}<div className="mt-8 flex gap-2"><Link href={`/questions?category=${encodeURIComponent(category.slug)}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">Browse questions</Link><Link href="/questions/ask" className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white">Ask here</Link></div><div className="mt-8 grid gap-4">{(questions ?? []).map((question)=><QuestionCard key={question.id} href={`/questions/${question.slug}`} title={question.title} excerpt={question.body_markdown} category={category.name} answers={counts.get(question.id) ?? 0} views={Number(question.view_count ?? 0)} />)}</div>{!questions?.length&&<div className="card mt-8 p-8 text-center text-sm text-slate-600">No questions in this category yet.</div>}</div></main>;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
-  const { data: category } = await supabase?.from('categories').select('name,description,is_public').eq('slug', slug).eq('is_public', true).maybeSingle() ?? { data: null };
+  const { data: category } = await supabase?.from('categories').select('name,description,is_public,is_indexable').eq('slug', slug).eq('is_public', true).maybeSingle() ?? { data: null };
   if (!category) return {};
-  return { title: `${category.name} — Tavryn`, description: category.description ?? `Questions and answers about ${category.name}.` };
+  const canonical = `${siteUrl}/categories/${slug}`;
+  return { title: category.name, description: category.description ?? `Questions and answers about ${category.name}.`, alternates: { canonical }, robots: { index: category.is_indexable, follow: true } };
 }
