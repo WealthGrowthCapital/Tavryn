@@ -6,6 +6,16 @@ export default async function QuestionsPage() {
   const supabase = await createSupabaseServerClient();
   const { data: questions } = await supabase?.from('questions').select('id,slug,title,body_markdown,status,view_count,category_id').in('status', ['open', 'closed']).order('updated_at', { ascending: false }).limit(50) ?? { data: [] };
 
+  const questionIds = (questions ?? []).map((question) => question.id);
+  const { data: answers } = questionIds.length
+    ? await supabase?.from('answers').select('question_id').eq('status', 'published').in('question_id', questionIds) ?? { data: [] }
+    : { data: [] };
+
+  const answerCounts = new Map<string, number>();
+  for (const answer of answers ?? []) {
+    answerCounts.set(answer.question_id, (answerCounts.get(answer.question_id) ?? 0) + 1);
+  }
+
   return (
     <main className="container py-12">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -25,7 +35,7 @@ export default async function QuestionsPage() {
             title={question.title}
             excerpt={question.body_markdown}
             category={question.category_id ? 'Community' : 'General'}
-            answers={0}
+            answers={answerCounts.get(question.id) ?? 0}
             views={Number(question.view_count ?? 0)}
           />
         ))}
