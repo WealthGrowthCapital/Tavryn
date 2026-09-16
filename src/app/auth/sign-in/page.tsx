@@ -2,9 +2,12 @@
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase';
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/questions/ask';
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,9 +22,11 @@ export default function SignInPage() {
       setBusy(false);
       return;
     }
+    const callback = new URL('/auth/callback', window.location.origin);
+    callback.searchParams.set('next', next);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: callback.toString() },
     });
     setMessage(error ? error.message : 'Check your email for the sign-in link.');
     setBusy(false);
