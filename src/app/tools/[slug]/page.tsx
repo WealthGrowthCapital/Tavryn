@@ -4,14 +4,14 @@ import { ToolWorkspace } from '@/components/tool-workspace';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: tool } = await supabase?.from('tools').select('name,description').eq('slug', slug).eq('is_published', true).maybeSingle() ?? { data: null };
   return { title: tool?.name ? `${tool.name} — Tavryn` : 'Tool — Tavryn', description: tool?.description ?? 'A free Tavryn utility.' };
 }
 
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   if (!supabase) notFound();
   const { data: tool } = await supabase.from('tools').select('name,description,source_license,license_verified').eq('slug', slug).eq('is_published', true).maybeSingle();
   if (!tool) notFound();
