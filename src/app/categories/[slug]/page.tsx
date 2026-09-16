@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { QuestionCard } from '@/components/question-card';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.forum';
 
