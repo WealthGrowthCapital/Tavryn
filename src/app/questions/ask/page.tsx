@@ -56,11 +56,12 @@ async function createQuestion(formData: FormData) {
   redirect(`/questions/${insert.data.slug}`);
 }
 
-export default async function AskPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function AskPage({ searchParams }: { searchParams: Promise<{ error?: string; title?: string }> }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   const { data: categories } = await supabase?.from('categories').select('id,name').eq('is_public', true).order('name') ?? { data: [] as { id: string; name: string }[] };
   const { data: tags } = await supabase?.from('tags').select('id,name,slug,description').order('name') ?? { data: [] as { id: string; name: string; slug: string; description: string | null }[] };
+  const initialTitle = typeof params.title === 'string' ? params.title.trim().slice(0, 180) : '';
 
   return (
     <main className="container py-12">
@@ -91,7 +92,7 @@ export default async function AskPage({ searchParams }: { searchParams: Promise<
           </fieldset>
 
           <label htmlFor="title" className="mt-6 block text-sm font-medium">Title</label>
-          <input id="title" name="title" required minLength={8} maxLength={180} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500" placeholder="What are you trying to solve?" />
+          <input id="title" name="title" required minLength={8} maxLength={180} defaultValue={initialTitle} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-500" placeholder="What are you trying to solve?" />
 
           <label htmlFor="body" className="mt-6 block text-sm font-medium">Details</label>
           <textarea id="body" name="body" required minLength={20} maxLength={20000} className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 p-4 outline-none focus:border-slate-500" placeholder="Include the context, what you tried, and what a useful answer would look like." />
