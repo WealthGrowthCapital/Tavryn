@@ -1,7 +1,15 @@
+import type { Metadata } from 'next';
 import { Search } from 'lucide-react';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { QuestionCard } from '@/components/question-card';
 import { ToolCard } from '@/components/tool-card';
+
+export const metadata: Metadata = {
+  title: 'Search',
+  description: 'Search Tavryn questions, tools, and practical community knowledge.',
+  alternates: { canonical: '/search' },
+  robots: { index: false, follow: true },
+};
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = '' } = await searchParams;
