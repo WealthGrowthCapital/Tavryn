@@ -1,9 +1,22 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { QuestionCard } from '@/components/question-card';
 
 const modes = [{ key: 'latest', label: 'Latest' }, { key: 'unanswered', label: 'Unanswered' }, { key: 'popular', label: 'Popular' }] as const;
 type Mode = (typeof modes)[number]['key'];
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.forum';
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ mode?: string; category?: string }> }): Promise<Metadata> {
+  const { mode, category } = await searchParams;
+  const hasFilters = Boolean(mode || category);
+  return {
+    title: 'Questions',
+    description: 'Search-driven questions, practical answers, and durable community knowledge on Tavryn.',
+    alternates: { canonical: `${siteUrl}/questions` },
+    robots: { index: !hasFilters, follow: true },
+  };
+}
 
 export default async function QuestionsPage({ searchParams }: { searchParams: Promise<{ mode?: string; category?: string }> }) {
   const { mode: rawMode, category: categorySlug } = await searchParams;
