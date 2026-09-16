@@ -8,6 +8,8 @@ export function SiteHeader() {
         <nav aria-label="Primary" className="hidden items-center gap-5 text-sm text-slate-600 md:flex">
           <Link href="/search" className="transition hover:text-slate-950">Search</Link>
           <Link href="/questions" className="transition hover:text-slate-950">Questions</Link>
+          <Link href="/categories" className="transition hover:text-slate-950">Categories</Link>
+          <Link href="/tags" className="transition hover:text-slate-950">Tags</Link>
           <Link href="/tools" className="transition hover:text-slate-950">Tools</Link>
         </nav>
         <div className="flex items-center gap-2">
