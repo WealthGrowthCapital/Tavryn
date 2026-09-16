@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
@@ -59,7 +60,7 @@ type AnswerTarget = {
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { supabase } = await requireModerator();
   const { error: pageError } = await searchParams;
-  const { data: reports } = await supabase.from('reports').select('id,target_type,target_id,reason,created_at').eq('status', 'open').order('created_at', { ascending: true }).limit(100);
+  const { data: reports } = await supabase.from('reports').select('id,target_type,target_id,reason,created_at').eq('status', 'open').order('created_at', { ascending: true }).limit(100) as { data: Report[] | null };
 
   const questionIds = [...new Set((reports ?? []).filter((r) => r.target_type === 'question').map((r) => r.target_id))];
   const answerIds = [...new Set((reports ?? []).filter((r) => r.target_type === 'answer').map((r) => r.target_id))];
@@ -80,18 +81,31 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
         <div className="mt-8 space-y-4">
           {(reports ?? []).map((report) => {
-            const target = report.target_type === 'question' ? questionsById.get(report.target_id) : answersById.get(report.target_id);
+            if (report.target_type === 'question') {
+              const target = questionsById.get(report.target_id);
+              return (
+                <article key={report.id} className="card p-6">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><span>question</span><span>·</span><span>{report.reason}</span><span>·</span><time dateTime={report.created_at}>{new Date(report.created_at).toLocaleString()}</time></div>
+                  <h2 className="mt-3 text-lg font-semibold text-slate-950">{target?.title ?? 'Reported question'}</h2>
+                  <p className="mt-3 text-sm text-slate-700">Status: {target?.status ?? 'unknown'}</p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {target?.slug && <Link href={`/questions/${target.slug}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View question</Link>}
+                    <form action={resolveReport}><input type="hidden" name="reportId" value={report.id}/><input type="hidden" name="status" value="resolved"/><button className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white">Resolve</button></form>
+                    <form action={resolveReport}><input type="hidden" name="reportId" value={report.id}/><input type="hidden" name="status" value="rejected"/><button className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Reject</button></form>
+                  </div>
+                </article>
+              );
+            }
+
+            const target = answersById.get(report.target_id);
+            const parent = target?.question_id ? questionsById.get(target.question_id) : undefined;
             return (
               <article key={report.id} className="card p-6">
-                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <span>{report.target_type}</span><span>·</span><span>{report.reason}</span><span>·</span><time dateTime={report.created_at}>{new Date(report.created_at).toLocaleString()}</time>
-                </div>
-                <h2 className="mt-3 text-lg font-semibold text-slate-950">{report.target_type === 'question' ? target?.title : target?.body_markdown?.slice(0, 220) ?? 'Reported content'}</h2>
-                {report.target_type === 'answer' && target?.question_id && <p className="mt-2 text-sm text-slate-500">Answer on question {questionsById.get(target.question_id)?.title ?? target.question_id}</p>}
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">Status: {target?.status ?? 'unknown'}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><span>answer</span><span>·</span><span>{report.reason}</span><span>·</span><time dateTime={report.created_at}>{new Date(report.created_at).toLocaleString()}</time></div>
+                <h2 className="mt-3 text-lg font-semibold text-slate-950">{target?.body_markdown?.slice(0, 220) ?? 'Reported answer'}</h2>
+                <p className="mt-3 text-sm text-slate-700">Status: {target?.status ?? 'unknown'}</p>
                 <div className="mt-5 flex flex-wrap gap-2">
-                  {report.target_type === 'question' && questionsById.get(report.target_id)?.slug && <a href={`/questions/${questionsById.get(report.target_id)?.slug}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View question</a>}
-                  {report.target_type === 'answer' && target?.question_id && <a href={`/questions/${questionsById.get(target.question_id)?.slug ?? ''}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View discussion</a>}
+                  {parent?.slug && <Link href={`/questions/${parent.slug}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">View discussion</Link>}
                   <form action={resolveReport}><input type="hidden" name="reportId" value={report.id}/><input type="hidden" name="status" value="resolved"/><button className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white">Resolve</button></form>
                   <form action={resolveReport}><input type="hidden" name="reportId" value={report.id}/><input type="hidden" name="status" value="rejected"/><button className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Reject</button></form>
                 </div>
