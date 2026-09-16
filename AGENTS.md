@@ -22,13 +22,20 @@ Build the smallest reliable version of the product that can:
 - Do not reuse open-source code until the exact license and relevant dependency/asset terms are recorded.
 - Preserve original copyright and license notices where required.
 
+## Forum-pattern requirement
+
+For any questions, answers, comments, tags, categories, votes, bookmarks, reports, profiles, moderation, search/discovery, or forum UX change, read and follow `skills/tavryn-forum-engineering/SKILL.md` and consult `docs/forum-pattern-audit.md`.
+
+Tavryn is a native Next.js/Supabase implementation. Mature open-source forums are reference systems, not dependencies. Borrow proven product/data patterns without copying their proprietary code, branding, or unnecessary infrastructure.
+
 ## Before changing code
 
 1. Inspect the repository.
 2. Read relevant docs and existing implementation.
-3. Identify the smallest change that satisfies the request.
-4. Check whether the dependency/library already provides the needed behavior.
-5. For Supabase changes, consult current Supabase guidance first.
+3. Read the applicable Tavryn skill(s).
+4. Identify the smallest change that satisfies the request.
+5. Check whether the dependency/library already provides the needed behavior.
+6. For Supabase changes, consult current Supabase guidance first.
 
 ## After changing code
 
@@ -48,6 +55,7 @@ Fix failures before declaring completion.
 - Never use user-editable metadata for authorization.
 - Ownership policies require actual owner predicates.
 - Changes to schema/auth/security require review before merge.
+- Foreign keys used by normal joins/filters should be indexed.
 
 ## SEO rules
 
@@ -63,6 +71,7 @@ Fix failures before declaring completion.
 - Do not invent a large component system.
 - Prioritize clarity, speed, accessibility, and mobile behavior.
 - Search and the core action should be immediately obvious.
+- Forum interactions should follow the contextual-action pattern used by mature forum systems.
 
 ## Agent behavior
 
@@ -71,3 +80,4 @@ Fix failures before declaring completion.
 - Prefer reversible changes.
 - Work in small verified increments.
 - When uncertain about a modern API, consult current vendor documentation rather than relying on memory.
+- Treat repeated failures as signals to improve the relevant skill or quality gate rather than merely retrying the same approach.
