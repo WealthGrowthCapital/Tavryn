@@ -1,11 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.com';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://tavryn.forum';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createSupabaseServerClient();
-  const staticRoutes = ['', '/search', '/questions', '/categories', '/tools'].map((path) => ({
+  const staticRoutes = ['', '/questions', '/categories', '/tools'].map((path) => ({
     url: `${siteUrl}${path}`,
     changeFrequency: 'daily' as const,
     priority: path === '' ? 1 : 0.7,
