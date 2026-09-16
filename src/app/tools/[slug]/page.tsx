@@ -1,41 +1,20 @@
-const tools: Record<string, { name: string; description: string }> = {
-  'random-team-generator': {
-    name: 'Random Team Generator',
-    description: 'Create balanced random teams with simple constraints.',
-  },
-  'lease-escalation-calculator': {
-    name: 'Lease Escalation Calculator',
-    description: 'Calculate scheduled rent increases across a lease term.',
-  },
-  'unit-conversion': {
-    name: 'Unit Conversion',
-    description: 'Fast everyday and professional unit conversions.',
-  },
-};
+import { notFound } from 'next/navigation';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { ToolWorkspace } from '@/components/tool-workspace';
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const supabase = createSupabaseServerClient();
+  const { data: tool } = await supabase?.from('tools').select('name,description').eq('slug', slug).eq('is_published', true).maybeSingle() ?? { data: null };
+  return { title: tool?.name ? `${tool.name} — Tavryn` : 'Tool — Tavryn', description: tool?.description ?? 'A free Tavryn utility.' };
+}
 
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const tool = tools[slug];
+  const supabase = createSupabaseServerClient();
+  if (!supabase) notFound();
+  const { data: tool } = await supabase.from('tools').select('name,description,source_license,license_verified').eq('slug', slug).eq('is_published', true).maybeSingle();
+  if (!tool) notFound();
 
-  if (!tool) {
-    return (
-      <main className="container py-16">
-        <h1 className="text-3xl font-semibold">Tool not found</h1>
-        <p className="mt-3 text-slate-600">That utility does not exist yet.</p>
-      </main>
-    );
-  }
-
-  return (
-    <main className="container py-12">
-      <div className="mx-auto max-w-3xl">
-        <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Free tool</div>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight">{tool.name}</h1>
-        <p className="mt-4 text-lg leading-8 text-slate-600">{tool.description}</p>
-        <div className="card mt-8 p-8">
-          <p className="text-sm text-slate-500">Interactive utility placeholder. The first production vertical will replace this with the verified calculation or workflow.</p>
-        </div>
-      </div>
-    </main>
-  );
+  return <main className="container py-12"><div className="mx-auto max-w-3xl"><div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Free utility</div><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{tool.name}</h1><p className="mt-3 text-slate-600">{tool.description}</p><section className="card mt-8 p-6"><ToolWorkspace slug={slug} /></section><p className="mt-4 text-xs text-slate-500">Source: {tool.source_license}{tool.license_verified ? ' · license/provenance verified' : ''}</p></div></main>;
 }
