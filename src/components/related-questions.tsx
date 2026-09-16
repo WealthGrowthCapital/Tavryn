@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
+type RelatedQuestion = {
+  id: string;
+  slug: string;
+  title: string;
+  answer_count: number;
+  view_count: number;
+};
+
 export async function RelatedQuestions({ questionId }: { questionId: string }) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
@@ -8,7 +16,7 @@ export async function RelatedQuestions({ questionId }: { questionId: string }) {
   const { data: related } = await supabase.rpc('find_related_questions', {
     source_question_id: questionId,
     result_limit: 5,
-  });
+  }) as { data: RelatedQuestion[] | null };
 
   if (!related?.length) return null;
 
