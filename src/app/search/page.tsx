@@ -64,12 +64,13 @@ async function recordOutcome(formData: FormData) {
   await supabase.from('search_outcomes').insert({ search_event_id: searchEventId, query_text: query, normalized_query: normalizeQuery(query), target_type: targetType, target_slug: targetSlug, outcome });
 }
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q = '' } = await searchParams;
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; previousEvent?: string }> }) {
+  const { q = '', previousEvent = '' } = await searchParams;
   const term = q.trim();
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
-  const previousSearchEventId = cookieStore.get('tavryn_last_search_event')?.value ?? '';
+  const cookiePreviousEvent = cookieStore.get('tavryn_last_search_event')?.value ?? '';
+  const previousSearchEventId = isUuid(previousEvent) ? previousEvent : cookiePreviousEvent;
   const searchEventId = term && supabase ? crypto.randomUUID() : null;
 
   const { data: rows } = term && supabase
@@ -99,6 +100,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       <div className="mx-auto max-w-4xl">
         <h1 className="text-3xl font-semibold tracking-tight">Search</h1>
         <form action="/search" className="mt-6 flex overflow-hidden rounded-xl border border-slate-300 bg-white">
+          <input type="hidden" name="previousEvent" value={searchEventId ?? ''} />
           <div className="flex flex-1 items-center gap-3 px-4">
             <Search className="h-5 w-5 text-slate-400" />
             <input name="q" defaultValue={q} placeholder="Search questions, tools, and useful knowledge" className="w-full py-3.5 outline-none" />
