@@ -109,7 +109,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <div className="mt-8">
             <div className="text-sm text-slate-500">{resultCount} results for “{term}”</div>
             {weakResult && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">These results do not include an answered community question or matching utility yet. This may be a useful knowledge gap.</div>}
-            {previousSearchEventId && <div className="mt-4 text-xs text-slate-400">Follow-up search detected after a previous result click.</div>}
             {resultCount === 0 && <div className="card mt-4 p-6"><h2 className="text-lg font-semibold text-slate-950">Nothing useful yet</h2><p className="mt-2 text-sm leading-6 text-slate-600">This search is a real knowledge gap. Turn it into a question and let the community build the answer.</p><Link href={askHref} className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Ask “{term.slice(0, 80)}”</Link></div>}
             <div className="mt-4 grid gap-3">
               {results.map((item) => (
