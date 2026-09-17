@@ -61,6 +61,15 @@ function buildBrief(item: Opportunity) {
   return `Review “${item.query_text}” and determine whether the missing artifact is a question, answer, or utility.`;
 }
 
+async function claimNextOpportunity() {
+  'use server';
+  const { supabase } = await requireModerator();
+  const { data, error } = await supabase.rpc('claim_next_search_opportunity');
+  if (error) redirect(`/admin/opportunities?error=${encodeURIComponent('Could not claim an opportunity.')}`);
+  const task = Array.isArray(data) ? data[0] : null;
+  redirect(task?.query_text ? `/admin/opportunities?claimed=${encodeURIComponent(task.query_text)}` : '/admin/opportunities?empty=1');
+}
+
 async function changeTaskState(formData: FormData) {
   'use server';
   const queryText = String(formData.get('query') ?? '').trim().slice(0, 160);
@@ -89,7 +98,8 @@ async function changeTaskState(formData: FormData) {
   redirect('/admin/opportunities');
 }
 
-export default async function SearchOpportunitiesPage() {
+export default async function SearchOpportunitiesPage({ searchParams }: { searchParams: Promise<{ claimed?: string; empty?: string; error?: string }> }) {
+  const params = await searchParams;
   const { supabase } = await requireModerator();
   const [{ data: opportunityRows }, { data: taskRows }] = await Promise.all([
     supabase.rpc('get_search_opportunities', { result_limit: 100 }),
@@ -104,8 +114,19 @@ export default async function SearchOpportunitiesPage() {
       <div className="mx-auto max-w-6xl">
         <Link href="/admin/reports" className="text-sm text-slate-500 hover:text-slate-950">← Moderation</Link>
         <div className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Growth intelligence</div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Search opportunities</h1>
-        <p className="mt-2 max-w-3xl text-slate-600">Demand is ranked from search volume, missing or weak results, click behavior, explicit solved/not-solved feedback, and reformulated searches after result clicks.</p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Search opportunities</h1>
+            <p className="mt-2 max-w-3xl text-slate-600">Demand is ranked from search volume, missing or weak results, click behavior, explicit solved/not-solved feedback, and reformulated searches after result clicks.</p>
+          </div>
+          <form action={claimNextOpportunity}>
+            <button className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Claim next opportunity</button>
+          </form>
+        </div>
+
+        {params.claimed && <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">Claimed “{params.claimed}”. It is now an owned work item.</div>}
+        {params.empty && <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600" role="status">No unworked search opportunity is available right now.</div>}
+        {params.error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{params.error}</div>}
 
         <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <div className="min-w-[1420px]">
