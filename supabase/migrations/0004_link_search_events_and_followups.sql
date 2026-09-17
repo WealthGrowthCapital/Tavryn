@@ -120,4 +120,5 @@ as $$
 $$;
 
 revoke all on function public.get_search_opportunities(integer) from public;
+revoke execute on function public.get_search_opportunities(integer) from anon;
 grant execute on function public.get_search_opportunities(integer) to authenticated;
