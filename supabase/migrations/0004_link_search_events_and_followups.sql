@@ -115,7 +115,7 @@ as $$
       3
     )
   from metrics m
-  order by 16 desc, m.latest_search_at desc
+  order by 17 desc, m.latest_search_at desc
   limit greatest(1, least(result_limit, 100));
 $$;
 
