@@ -85,7 +85,6 @@ as $function$
           or extensions.similarity(a.normalized_query, q.normalized_query) >= 0.34
         )
       order by
-        case when a.normalized_query = q.normalized_query then 0 else 1 end,
         a.searches desc,
         extensions.similarity(a.normalized_query, q.normalized_query) desc,
         a.normalized_query
