@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
- type SearchResult = {
+type SearchResult = {
   result_type: 'question' | 'tool' | 'tag' | 'category';
   slug: string;
   title: string;
@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   alternates: { canonical: '/search' },
   robots: { index: false, follow: true },
 };
+
+function normalizeQuery(value: string) {
+  return value.toLowerCase().replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+}
 
 function targetHref(item: SearchResult) {
   switch (item.result_type) {
@@ -50,7 +54,7 @@ async function recordOutcome(formData: FormData) {
   if (!query || !targetSlug || !['question', 'tool', 'tag', 'category'].includes(targetType) || !['solved', 'not_solved'].includes(outcome)) return;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return;
-  await supabase.from('search_outcomes').insert({ query_text: query, target_type: targetType, target_slug: targetSlug, outcome });
+  await supabase.from('search_outcomes').insert({ query_text: query, normalized_query: normalizeQuery(query), target_type: targetType, target_slug: targetSlug, outcome });
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -70,6 +74,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (term && supabase) {
     await supabase.from('search_events').insert({
       query_text: term.slice(0, 160),
+      normalized_query: normalizeQuery(term),
       result_count: resultCount,
       weak_result: weakResult,
     });
@@ -88,58 +93,25 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           </div>
           <button className="bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Search</button>
         </form>
-
         {term ? (
           <div className="mt-8">
             <div className="text-sm text-slate-500">{resultCount} results for “{term}”</div>
-            {weakResult && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                These results do not include an answered community question or matching utility yet. This may be a useful knowledge gap.
-              </div>
-            )}
-            {resultCount === 0 && (
-              <div className="card mt-4 p-6">
-                <h2 className="text-lg font-semibold text-slate-950">Nothing useful yet</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">This search is a real knowledge gap. Turn it into a question and let the community build the answer.</p>
-                <Link href={askHref} className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Ask “{term.slice(0, 80)}”</Link>
-              </div>
-            )}
-
+            {weakResult && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">These results do not include an answered community question or matching utility yet. This may be a useful knowledge gap.</div>}
+            {resultCount === 0 && <div className="card mt-4 p-6"><h2 className="text-lg font-semibold text-slate-950">Nothing useful yet</h2><p className="mt-2 text-sm leading-6 text-slate-600">This search is a real knowledge gap. Turn it into a question and let the community build the answer.</p><Link href={askHref} className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Ask “{term.slice(0, 80)}”</Link></div>}
             <div className="mt-4 grid gap-3">
               {results.map((item) => (
                 <div key={`${item.result_type}:${item.slug}`} className="card p-5 transition hover:-translate-y-0.5 hover:shadow-sm">
                   <Link href={trackedHref(term, item)} className="block">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-xs font-medium uppercase tracking-wide text-blue-600">{resultLabel(item.result_type)}</span>
-                      {item.result_type === 'question' && <span className="text-xs text-slate-400">{Number(item.answer_count ?? 0)} answers · {Number(item.view_count ?? 0)} views</span>}
-                    </div>
+                    <div className="flex items-center justify-between gap-4"><span className="text-xs font-medium uppercase tracking-wide text-blue-600">{resultLabel(item.result_type)}</span>{item.result_type === 'question' && <span className="text-xs text-slate-400">{Number(item.answer_count ?? 0)} answers · {Number(item.view_count ?? 0)} views</span>}</div>
                     <h2 className="mt-2 text-base font-semibold text-slate-950">{item.title}</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{item.excerpt}</p>
                   </Link>
-                  <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
-                    <span className="text-xs text-slate-400">Did this help?</span>
-                    <form action={recordOutcome}>
-                      <input type="hidden" name="query" value={term.slice(0, 160)} />
-                      <input type="hidden" name="targetType" value={item.result_type} />
-                      <input type="hidden" name="targetSlug" value={item.slug} />
-                      <input type="hidden" name="outcome" value="solved" />
-                      <button className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Solved</button>
-                    </form>
-                    <form action={recordOutcome}>
-                      <input type="hidden" name="query" value={term.slice(0, 160)} />
-                      <input type="hidden" name="targetType" value={item.result_type} />
-                      <input type="hidden" name="targetSlug" value={item.slug} />
-                      <input type="hidden" name="outcome" value="not_solved" />
-                      <button className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Not solved</button>
-                    </form>
-                  </div>
+                  <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3"><span className="text-xs text-slate-400">Did this help?</span><form action={recordOutcome}><input type="hidden" name="query" value={term.slice(0, 160)} /><input type="hidden" name="targetType" value={item.result_type} /><input type="hidden" name="targetSlug" value={item.slug} /><input type="hidden" name="outcome" value="solved" /><button className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Solved</button></form><form action={recordOutcome}><input type="hidden" name="query" value={term.slice(0, 160)} /><input type="hidden" name="targetType" value={item.result_type} /><input type="hidden" name="targetSlug" value={item.slug} /><input type="hidden" name="outcome" value="not_solved" /><button className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Not solved</button></form></div>
                 </div>
               ))}
             </div>
           </div>
-        ) : (
-          <div className="card mt-8 p-6 text-sm text-slate-600">Start with a concrete problem, model number, error message, calculation, or workflow.</div>
-        )}
+        ) : <div className="card mt-8 p-6 text-sm text-slate-600">Start with a concrete problem, model number, error message, calculation, or workflow.</div>}
       </div>
     </main>
   );
