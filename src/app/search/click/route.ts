@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
-function safeQuery(value: string | null) {
-  return (value ?? '').trim().slice(0, 160);
-}
-
-function safeSlug(value: string | null) {
-  return (value ?? '').trim().slice(0, 220);
-}
+function safeQuery(value: string | null) { return (value ?? '').trim().slice(0, 160); }
+function safeSlug(value: string | null) { return (value ?? '').trim().slice(0, 220); }
+function normalizeQuery(value: string) { return value.toLowerCase().replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); }
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -16,9 +12,7 @@ export async function GET(request: NextRequest) {
   const slug = safeSlug(params.get('slug'));
   const destination = targetType === 'question' ? `/questions/${encodeURIComponent(slug)}` : `/tools/${encodeURIComponent(slug)}`;
 
-  if (!query || !slug || !['question', 'tool'].includes(targetType ?? '')) {
-    return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
-  }
+  if (!query || !slug || !['question', 'tool'].includes(targetType ?? '')) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return NextResponse.redirect(new URL('/search', request.url));
@@ -32,9 +26,6 @@ export async function GET(request: NextRequest) {
     validTarget = Boolean(data);
   }
 
-  if (validTarget) {
-    await supabase.from('search_clicks').insert({ query_text: query, target_type: targetType, target_slug: slug });
-  }
-
+  if (validTarget) await supabase.from('search_clicks').insert({ query_text: query, normalized_query: normalizeQuery(query), target_type: targetType, target_slug: slug });
   return NextResponse.redirect(new URL(validTarget ? destination : `/search?q=${encodeURIComponent(query)}`, request.url));
 }
