@@ -40,11 +40,8 @@ function targetHref(item: SearchResult) {
 }
 
 function trackedHref(term: string, item: SearchResult, searchEventId: string | null) {
-  if (item.result_type === 'question' || item.result_type === 'tool') {
-    const event = searchEventId ? `&event=${encodeURIComponent(searchEventId)}` : '';
-    return `/search/click?q=${encodeURIComponent(term.slice(0, 160))}&type=${item.result_type}&slug=${encodeURIComponent(item.slug)}${event}`;
-  }
-  return targetHref(item);
+  const event = searchEventId ? `&event=${encodeURIComponent(searchEventId)}` : '';
+  return `/search/click?q=${encodeURIComponent(term.slice(0, 160))}&type=${item.result_type}&slug=${encodeURIComponent(item.slug)}${event}`;
 }
 
 function resultLabel(type: SearchResult['result_type']) {
@@ -61,10 +58,8 @@ async function recordOutcome(formData: FormData) {
   if (!query || !targetSlug || !isUuid(searchEventId) || !['question', 'tool', 'tag', 'category'].includes(targetType) || !['solved', 'not_solved'].includes(outcome)) return;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return;
-
   const { data: currentResults, error: searchError } = await supabase.rpc('search_all', { search_query: query, result_limit: 60 });
   if (searchError || !(currentResults ?? []).some((item) => item.result_type === targetType && item.slug === targetSlug)) return;
-
   await supabase.from('search_outcomes').insert({ search_event_id: searchEventId, query_text: query, normalized_query: normalizeQuery(query), target_type: targetType, target_slug: targetSlug, outcome });
 }
 
