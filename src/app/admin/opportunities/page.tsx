@@ -47,6 +47,17 @@ function actionFor(item: Opportunity) {
   return { href: `/search?q=${query}`, label: 'Open search' };
 }
 
+function buildBrief(item: Opportunity) {
+  if (item.opportunity_type === 'tool_candidate') {
+    return item.intent === 'calculation'
+      ? `Build a focused calculator for “${item.query_text}” with the minimum inputs and an immediately reusable result.`
+      : `Investigate whether “${item.query_text}” is better served by a lightweight utility than another discussion.`;
+  }
+  if (item.opportunity_type === 'improve_existing') return `Find the best existing answer for “${item.query_text}”, identify what users still miss, and improve the canonical response.`;
+  if (item.opportunity_type === 'new_answer') return `Create a canonical community question for “${item.query_text}” and seed it with enough context to attract a durable answer.`;
+  return `Review “${item.query_text}” and determine whether the missing artifact is a question, answer, or utility.`;
+}
+
 export default async function SearchOpportunitiesPage() {
   const supabase = await requireModerator();
   const { data } = await supabase.rpc('get_search_opportunities', { result_limit: 100 });
@@ -71,7 +82,9 @@ export default async function SearchOpportunitiesPage() {
                 <div key={item.query_text} className="grid grid-cols-[minmax(0,1fr)_70px_60px_60px_60px_70px_70px_70px_75px_70px_90px_110px_100px] items-center gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0">
                   <div className="min-w-0">
                     <Link href={`/search?q=${encodeURIComponent(item.query_text)}`} className="block truncate font-medium text-slate-900 hover:underline">{item.query_text}</Link>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-400"><span>{item.intent} · Last searched {new Date(item.latest_search_at).toLocaleString()}</span><Link href={action.href} className="font-semibold text-slate-700 hover:text-slate-950">{action.label} →</Link></div>
+                    <div className="mt-1 text-xs text-slate-400">{item.intent} · Last searched {new Date(item.latest_search_at).toLocaleString()}</div>
+                    <div className="mt-2 max-w-xl text-xs leading-5 text-slate-500">{buildBrief(item)}</div>
+                    <Link href={action.href} className="mt-2 inline-flex text-xs font-semibold text-slate-700 hover:text-slate-950">{action.label} →</Link>
                   </div>
                   <div className="text-sm text-slate-700">{Number(item.searches)}</div>
                   <div className="text-sm text-slate-700">{Number(item.zero_result_searches)}</div>
