@@ -13,33 +13,57 @@ export async function GET(request: NextRequest) {
   const targetType = params.get('type');
   const slug = safeSlug(params.get('slug'));
   const searchEventId = safeEvent(params.get('event'));
-  const destination = targetType === 'question' ? `/questions/${encodeURIComponent(slug)}` : `/tools/${encodeURIComponent(slug)}`;
 
-  if (!query || !slug || !['question', 'tool'].includes(targetType ?? '')) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
+  if (!query || !slug || !['question', 'tool', 'tag', 'category'].includes(targetType ?? '')) {
+    return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
+  }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return NextResponse.redirect(new URL('/search', request.url));
 
   let validTarget = false;
+  let destination = `/search?q=${encodeURIComponent(query)}`;
   if (targetType === 'question') {
     const { data } = await supabase.from('questions').select('slug').eq('slug', slug).in('status', ['open', 'closed']).maybeSingle();
     validTarget = Boolean(data);
-  } else {
+    if (validTarget) destination = `/questions/${encodeURIComponent(slug)}`;
+  } else if (targetType === 'tool') {
     const { data } = await supabase.from('tools').select('slug').eq('slug', slug).eq('is_published', true).maybeSingle();
     validTarget = Boolean(data);
+    if (validTarget) destination = `/tools/${encodeURIComponent(slug)}`;
+  } else if (targetType === 'tag') {
+    const { data } = await supabase.from('tags').select('slug').eq('slug', slug).maybeSingle();
+    validTarget = Boolean(data);
+    if (validTarget) destination = `/tags/${encodeURIComponent(slug)}`;
+  } else {
+    const { data } = await supabase.from('categories').select('slug').eq('slug', slug).eq('is_public', true).maybeSingle();
+    validTarget = Boolean(data);
+    if (validTarget) destination = `/categories/${encodeURIComponent(slug)}`;
   }
 
-  if (validTarget) {
-    await supabase.from('search_clicks').insert({
-      query_text: query,
-      normalized_query: normalizeQuery(query),
-      target_type: targetType,
-      target_slug: slug,
-      search_event_id: isUuid(searchEventId) ? searchEventId : null,
+  if (!validTarget) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
+
+  const { data: currentResults } = await supabase.rpc('search_all', { search_query: query, result_limit: 60 });
+  const appearedInSearch = (currentResults ?? []).some((item) => item.result_type === targetType && item.slug === slug);
+  if (!appearedInSearch) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
+
+  await supabase.from('search_clicks').insert({
+    query_text: query,
+    normalized_query: normalizeQuery(query),
+    target_type: targetType,
+    target_slug: slug,
+    search_event_id: isUuid(searchEventId) ? searchEventId : null,
+  });
+
+  const response = NextResponse.redirect(new URL(destination, request.url));
+  if (isUuid(searchEventId)) {
+    response.cookies.set('tavryn_last_search_event', searchEventId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 900,
+      path: '/',
     });
   }
-
-  const response = NextResponse.redirect(new URL(validTarget ? destination : `/search?q=${encodeURIComponent(query)}`, request.url));
-  if (validTarget && isUuid(searchEventId)) response.cookies.set('tavryn_last_search_event', searchEventId, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900, path: '/' });
   return response;
 }
