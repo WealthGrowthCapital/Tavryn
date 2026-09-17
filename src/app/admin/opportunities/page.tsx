@@ -8,6 +8,23 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+type Cluster = {
+  representative_query: string;
+  intent: string;
+  member_count: number;
+  member_queries: string[];
+  searches: number;
+  zero_result_searches: number;
+  weak_result_searches: number;
+  click_count: number;
+  clicked_searches: number;
+  follow_up_searches: number;
+  solved_count: number;
+  not_solved_count: number;
+  latest_search_at: string;
+  cluster_score: number;
+};
+
 type Opportunity = {
   query_text: string;
   searches: number;
@@ -101,11 +118,13 @@ async function changeTaskState(formData: FormData) {
 export default async function SearchOpportunitiesPage({ searchParams }: { searchParams: Promise<{ claimed?: string; empty?: string; error?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireModerator();
-  const [{ data: opportunityRows }, { data: taskRows }] = await Promise.all([
+  const [{ data: opportunityRows }, { data: taskRows }, { data: clusterRows }] = await Promise.all([
     supabase.rpc('get_search_opportunities', { result_limit: 100 }),
     supabase.from('search_opportunity_tasks').select('id,normalized_query,status,owner_id'),
+    supabase.rpc('get_search_demand_clusters', { result_limit: 12, query_limit: 500 }),
   ]);
   const opportunities = (opportunityRows ?? []) as Opportunity[];
+  const clusters = (clusterRows ?? []) as Cluster[];
   const tasks = (taskRows ?? []) as Task[];
   const taskByQuery = new Map(tasks.map((task) => [task.normalized_query, task]));
 
@@ -127,6 +146,46 @@ export default async function SearchOpportunitiesPage({ searchParams }: { search
         {params.claimed && <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">Claimed “{params.claimed}”. It is now an owned work item.</div>}
         {params.empty && <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600" role="status">No unworked search opportunity is available right now.</div>}
         {params.error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{params.error}</div>}
+
+
+        <section className="mt-10">
+          <div className="mb-4">
+            <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Intent clusters</div>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Demand behind the wording</h2>
+            <p className="mt-1 text-sm text-slate-600">Related searches are grouped by intent and conservative textual similarity, so one underlying need is not counted as separate opportunities.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {clusters.map((cluster) => (
+              <article key={cluster.representative_query} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <Link href={`/search?q=${encodeURIComponent(cluster.representative_query)}`} className="font-semibold text-slate-950 hover:underline">
+                      {cluster.representative_query}
+                    </Link>
+                    <div className="mt-1 text-xs text-slate-400">{cluster.intent} · {Number(cluster.member_count)} related phrasings</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-lg font-semibold text-slate-950">{Number(cluster.cluster_score).toFixed(2)}</div>
+                    <div className="text-xs text-slate-400">cluster score</div>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-4 gap-3 text-xs">
+                  <div><div className="text-slate-400">Searches</div><div className="mt-1 font-semibold text-slate-800">{Number(cluster.searches)}</div></div>
+                  <div><div className="text-slate-400">Zero</div><div className="mt-1 font-semibold text-slate-800">{Number(cluster.zero_result_searches)}</div></div>
+                  <div><div className="text-slate-400">Not solved</div><div className="mt-1 font-semibold text-slate-800">{Number(cluster.not_solved_count)}</div></div>
+                  <div><div className="text-slate-400">Follow-up</div><div className="mt-1 font-semibold text-slate-800">{Number(cluster.follow_up_searches)}</div></div>
+                </div>
+                <div className="mt-4 text-xs leading-5 text-slate-500">
+                  {cluster.member_queries.slice(0, 5).map((query) => (
+                    <span key={query} className="mr-2 inline-block rounded-md bg-slate-50 px-2 py-1">“{query}”</span>
+                  ))}
+                </div>
+              </article>
+            ))}
+            {!clusters.length && <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 md:col-span-2">Clusters will appear after the same or closely related need has been searched more than once.</div>}
+          </div>
+        </section>
+
 
         <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <div className="min-w-[1420px]">
