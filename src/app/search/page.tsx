@@ -15,6 +15,8 @@ type SearchResult = {
   relevance: number;
 };
 
+type SearchRow = { result_type: SearchResult['result_type']; slug: string };
+
 export const metadata: Metadata = {
   title: 'Search',
   description: 'Search Tavryn questions, tools, and practical community knowledge.',
@@ -59,7 +61,7 @@ async function recordOutcome(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return;
   const { data: currentResults, error: searchError } = await supabase.rpc('search_all', { search_query: query, result_limit: 60 });
-  if (searchError || !(currentResults ?? []).some((item) => item.result_type === targetType && item.slug === targetSlug)) return;
+  if (searchError || !((currentResults ?? []) as SearchRow[]).some((item: SearchRow) => item.result_type === targetType && item.slug === targetSlug)) return;
   await supabase.from('search_outcomes').insert({ search_event_id: searchEventId, query_text: query, normalized_query: normalizeQuery(query), target_type: targetType, target_slug: targetSlug, outcome });
 }
 
