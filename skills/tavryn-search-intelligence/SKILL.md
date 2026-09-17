@@ -40,5 +40,13 @@ Before shipping search changes:
 5. Run CI typecheck, lint, and production build.
 6. Inspect real result output before declaring the ranking change useful.
 
+## Clustering rules
+- Treat normalized-query grouping as a first pass, not semantic understanding.
+- Cluster only within the same intent family and require a conservative trigram similarity threshold.
+- Use a volume-weighted representative query so the cluster has a stable canonical anchor.
+- Aggregate searches, zero/weak results, clicks, follow-ups, solved/not-solved feedback, and recency across cluster members.
+- Keep clustering deterministic and bounded by a recent/top-query cap so pairwise comparison does not become an unbounded database workload.
+- Never auto-publish content from a cluster; a cluster is demand evidence for a human-reviewed opportunity.
+
 ## Next-level improvements
-Prefer outcome-aware ranking, duplicate detection, query clustering, result reformulation analysis, and tool-creation opportunities over vanity metrics. Upgrade to Meilisearch/Typesense only when Postgres retrieval is demonstrably the bottleneck.
+Prefer outcome-aware ranking, duplicate detection, demand clustering, result reformulation analysis, and tool-creation opportunities over vanity metrics. Upgrade to embeddings only after heuristic clusters produce enough volume to justify semantic infrastructure, and upgrade to Meilisearch/Typesense only when Postgres retrieval is demonstrably the bottleneck.
