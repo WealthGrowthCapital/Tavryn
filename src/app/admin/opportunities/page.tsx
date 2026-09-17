@@ -39,6 +39,14 @@ async function requireModerator() {
   return supabase;
 }
 
+function actionFor(item: Opportunity) {
+  const query = encodeURIComponent(item.query_text);
+  if (item.opportunity_type === 'new_answer') return { href: `/questions/ask?title=${query}`, label: 'Create question' };
+  if (item.opportunity_type === 'improve_existing') return { href: `/search?q=${query}`, label: 'Review results' };
+  if (item.opportunity_type === 'tool_candidate') return { href: `/search?q=${query}`, label: 'Investigate tool' };
+  return { href: `/search?q=${query}`, label: 'Open search' };
+}
+
 export default async function SearchOpportunitiesPage() {
   const supabase = await requireModerator();
   const { data } = await supabase.rpc('get_search_opportunities', { result_limit: 100 });
@@ -50,33 +58,36 @@ export default async function SearchOpportunitiesPage() {
         <Link href="/admin/reports" className="text-sm text-slate-500 hover:text-slate-950">← Moderation</Link>
         <div className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Growth intelligence</div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Search opportunities</h1>
-        <p className="mt-2 max-w-3xl text-slate-600">Demand is ranked from search volume, missing or weak results, click behavior, explicit solved/not-solved feedback, and follow-up searches after a result click.</p>
+        <p className="mt-2 max-w-3xl text-slate-600">Demand is ranked from search volume, missing or weak results, click behavior, explicit solved/not-solved feedback, and reformulated searches after result clicks.</p>
 
         <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <div className="min-w-[1320px]">
             <div className="grid grid-cols-[minmax(0,1fr)_70px_60px_60px_60px_70px_70px_70px_75px_70px_90px_110px_100px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <div>Query</div><div>Searches</div><div>Zero</div><div>Weak</div><div>Zero %</div><div>Clicks</div><div>Click %</div><div>Follow</div><div>Follow %</div><div>Solved</div><div>Not solved</div><div>Type</div><div>Score</div>
             </div>
-            {opportunities.map((item) => (
-              <div key={item.query_text} className="grid grid-cols-[minmax(0,1fr)_70px_60px_60px_60px_70px_70px_70px_75px_70px_90px_110px_100px] items-center gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0">
-                <div className="min-w-0">
-                  <Link href={`/search?q=${encodeURIComponent(item.query_text)}`} className="block truncate font-medium text-slate-900 hover:underline">{item.query_text}</Link>
-                  <div className="mt-1 text-xs text-slate-400">{item.intent} · Last searched {new Date(item.latest_search_at).toLocaleString()}</div>
+            {opportunities.map((item) => {
+              const action = actionFor(item);
+              return (
+                <div key={item.query_text} className="grid grid-cols-[minmax(0,1fr)_70px_60px_60px_60px_70px_70px_70px_75px_70px_90px_110px_100px] items-center gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0">
+                  <div className="min-w-0">
+                    <Link href={`/search?q=${encodeURIComponent(item.query_text)}`} className="block truncate font-medium text-slate-900 hover:underline">{item.query_text}</Link>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-400"><span>{item.intent} · Last searched {new Date(item.latest_search_at).toLocaleString()}</span><Link href={action.href} className="font-semibold text-slate-700 hover:text-slate-950">{action.label} →</Link></div>
+                  </div>
+                  <div className="text-sm text-slate-700">{Number(item.searches)}</div>
+                  <div className="text-sm text-slate-700">{Number(item.zero_result_searches)}</div>
+                  <div className="text-sm text-slate-700">{Number(item.weak_result_searches)}</div>
+                  <div className="text-sm text-slate-700">{(Number(item.zero_result_rate) * 100).toFixed(1)}%</div>
+                  <div className="text-sm text-slate-700">{Number(item.click_count)}</div>
+                  <div className="text-sm text-slate-700">{(Number(item.click_rate) * 100).toFixed(1)}%</div>
+                  <div className="text-sm text-slate-700">{Number(item.follow_up_searches)}</div>
+                  <div className="text-sm text-slate-700">{(Number(item.follow_up_rate) * 100).toFixed(1)}%</div>
+                  <div className="text-sm text-slate-700">{Number(item.solved_count)}</div>
+                  <div className="text-sm text-slate-700">{Number(item.not_solved_count)}</div>
+                  <div className="truncate text-sm font-medium text-slate-700">{item.opportunity_type}</div>
+                  <div className="text-sm font-semibold text-slate-950">{Number(item.opportunity_score).toFixed(2)}</div>
                 </div>
-                <div className="text-sm text-slate-700">{Number(item.searches)}</div>
-                <div className="text-sm text-slate-700">{Number(item.zero_result_searches)}</div>
-                <div className="text-sm text-slate-700">{Number(item.weak_result_searches)}</div>
-                <div className="text-sm text-slate-700">{(Number(item.zero_result_rate) * 100).toFixed(1)}%</div>
-                <div className="text-sm text-slate-700">{Number(item.click_count)}</div>
-                <div className="text-sm text-slate-700">{(Number(item.click_rate) * 100).toFixed(1)}%</div>
-                <div className="text-sm text-slate-700">{Number(item.follow_up_searches)}</div>
-                <div className="text-sm text-slate-700">{(Number(item.follow_up_rate) * 100).toFixed(1)}%</div>
-                <div className="text-sm text-slate-700">{Number(item.solved_count)}</div>
-                <div className="text-sm text-slate-700">{Number(item.not_solved_count)}</div>
-                <div className="truncate text-sm font-medium text-slate-700">{item.opportunity_type}</div>
-                <div className="text-sm font-semibold text-slate-950">{Number(item.opportunity_score).toFixed(2)}</div>
-              </div>
-            ))}
+              );
+            })}
             {!opportunities.length && <div className="p-10 text-center text-sm text-slate-600">No search demand has been recorded yet.</div>}
           </div>
         </div>
