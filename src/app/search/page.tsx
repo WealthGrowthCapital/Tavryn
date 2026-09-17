@@ -108,13 +108,24 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {term ? (
           <div className="mt-8">
             <div className="text-sm text-slate-500">{resultCount} results for “{term}”</div>
-            {weakResult && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">These results do not include an answered community question or matching utility yet. This may be a useful knowledge gap.</div>}
+            {weakResult && (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+                <span>These results do not include an answered community question or matching utility yet. This may be a useful knowledge gap.</span>
+                <Link href={askHref} className="inline-flex shrink-0 rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white">Ask the community</Link>
+              </div>
+            )}
             {resultCount === 0 && <div className="card mt-4 p-6"><h2 className="text-lg font-semibold text-slate-950">Nothing useful yet</h2><p className="mt-2 text-sm leading-6 text-slate-600">This search is a real knowledge gap. Turn it into a question and let the community build the answer.</p><Link href={askHref} className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Ask “{term.slice(0, 80)}”</Link></div>}
             <div className="mt-4 grid gap-3">
               {results.map((item) => (
                 <div key={`${item.result_type}:${item.slug}`} className="card p-5 transition hover:-translate-y-0.5 hover:shadow-sm">
                   <Link href={trackedHref(term, item, searchEventId)} className="block">
-                    <div className="flex items-center justify-between gap-4"><span className="text-xs font-medium uppercase tracking-wide text-blue-600">{resultLabel(item.result_type)}</span>{item.result_type === 'question' && <span className="text-xs text-slate-400">{Number(item.answer_count ?? 0)} answers · {Number(item.view_count ?? 0)} views</span>}</div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium uppercase tracking-wide text-blue-600">{resultLabel(item.result_type)}</span>
+                        {item.category && <span className="text-xs text-slate-400">{item.category}</span>}
+                      </div>
+                      {item.result_type === 'question' && <span className="text-xs text-slate-400">{Number(item.answer_count ?? 0)} answers · {Number(item.view_count ?? 0)} views</span>}
+                    </div>
                     <h2 className="mt-2 text-base font-semibold text-slate-950">{item.title}</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{item.excerpt}</p>
                   </Link>
