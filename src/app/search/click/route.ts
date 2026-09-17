@@ -7,6 +7,8 @@ function safeEvent(value: string | null) { return (value ?? '').trim(); }
 function normalizeQuery(value: string) { return value.toLowerCase().replace(/[\p{P}\p{S}]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); }
 function isUuid(value: string) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }
 
+type SearchRow = { result_type: 'question' | 'tool' | 'tag' | 'category'; slug: string };
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const query = safeQuery(params.get('q'));
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
   if (!validTarget) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
 
   const { data: currentResults } = await supabase.rpc('search_all', { search_query: query, result_limit: 60 });
-  const appearedInSearch = (currentResults ?? []).some((item) => item.result_type === targetType && item.slug === slug);
+  const appearedInSearch = ((currentResults ?? []) as SearchRow[]).some((item: SearchRow) => item.result_type === targetType && item.slug === slug);
   if (!appearedInSearch) return NextResponse.redirect(new URL(`/search?q=${encodeURIComponent(query)}`, request.url));
 
   await supabase.from('search_clicks').insert({
